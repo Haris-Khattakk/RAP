@@ -24,10 +24,9 @@ const signup = async (data) => {
   }
 };
 const signin = async (data) => {
+
   try {
-    const response = await axios.post(
-      `${Baseurl}/user/signin`,
-      { data },
+    const response = await axios.post(`${Baseurl}/user/signin`, data,
       { withCredentials: true }
     );
     return response;

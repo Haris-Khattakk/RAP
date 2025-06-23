@@ -1,4 +1,4 @@
-const user = require("../models/userModel");
+const User = require("../models/userModel");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
@@ -6,179 +6,126 @@ const jwt = require("jsonwebtoken");
 const post = require("../models/postModel");
 const { createNotification } = require("./notificationsController");
 const notiMsgs = require("../Texts/notications");
+const sendEmail = require("./sendEmail");
 
 const userController = {
   createUser: async (req, res) => {
-    // todo: generate jwt or session for authentication
     const { name, email, password, role } = req.body;
 
     try {
-      const found_user = await user.find({ user_name: name });
-      if (found_user.length > 0) {
-        return res.status(400).send("user name is already taken");
-      } else {
-        const found_user = await user.find({ email: email });
-        if (found_user.length > 0) {
-          return res.status(400).send("email is already taken");
-        }
+      // Check for existing username or email in one query
+      const existingUser = await User.findOne({
+        $or: [{ user_name: name }, { email }],
+      });
+
+      if (existingUser) {
+        const conflictField =
+          existingUser.email === email ? "email" : "username";
+        return res.status(400).send(`${conflictField} is already taken`);
       }
+
+      // Hash password
+      const saltRounds = 15;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Create user
+      const newUser = await User.create({
+        user_name: name,
+        email,
+        password: hashedPassword,
+        role: role || "User",
+        image: req.file
+          ? { data: req.file.buffer, contentType: req.file.mimetype }
+          : null,
+      });
+
+      // JWT token generation
+      const token = jwt.sign(
+        {
+          id: newUser._id,
+          email: newUser.email,
+          user_name: newUser.user_name,
+          role: newUser.role,
+        },
+        process.env.SECRET_KEY,
+        { algorithm: "HS256", expiresIn: process.env.JWT_EXP }
+      );
+
+      // Send email
+      const sentMail = await sendEmail(email, "Thank you!", "Thank you");
+      if (!sentMail.accepted?.length) {
+        return res.status(500).send("Failed to send email");
+      }
+
+      // Send cookie
+      res
+        .cookie("authToken", token, {
+          httpOnly: true,
+          sameSite: "strict",
+          secure: false,
+        })
+        .send("Successfully logged in - cookie sent");
     } catch (err) {
-      return res.send(err);
+      console.error(err);
+      res.status(500).send("Internal server error");
     }
-
-    const saltRounds = 15;
-    bcrypt.hash(password, saltRounds, async (err, hash) => {
-      if (err) {
-        return res.status(500).send(err);
-      } else {
-        const userData = {
-          user_name: name,
-          email: email,
-          password: hash,
-          role: role || "User",
-          image: req.file
-            ? {
-                data: req.file.buffer,
-                contentType: req.file.mimetype,
-              }
-            : null,
-        };
-        // store this hash in the password section alnong with email in mongoDB
-        try {
-          var userDB = await user.create(userData);
-
-          // (2) generate jwt token and send as cookie back to client
-          const secretKey = process.env.SECRET_KEY;
-          const payload = {
-            id: userDB._id,
-            email: userDB.email,
-            user_name: userDB.user_name,
-            role: userDB.role,
-          };
-
-          // (3) set cookies for client browser
-
-          // res.clearCookie("authToken");
-          const token = jwt.sign(payload, secretKey, {
-            algorithm: "HS256",
-            expiresIn: process.env.JWT_EXP,
-          }); // send an instant email to user
-          // create transporter
-          const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-              user: process.env.ADMIN_EMAIL,
-              pass: process.env.ADMIN_PASS,
-            },
-          });
-          // create email message
-          const mailOptions = {
-            from: process.env.ADMIN_EMAIL,
-            to: email,
-            subject: "Thank you!",
-            text: "Thank you",
-          };
-
-          try {
-            const sentMail = await transporter.sendMail(mailOptions);
-            //  console.log(sentMail)
-            if (sentMail.accepted != null) {
-              // console.log("sending cookie:", token)
-              res
-                .cookie("authToken", token, {
-                  httpOnly: true,
-                  sameSite: "strict",
-                  secure: false,
-                })
-                .send("Successfully logged in-cookies sent");
-            } else {
-              res.sendStatus(404);
-            }
-          } catch (error) {
-            console.log(error);
-          }
-        } catch (err) {
-          res.send(err);
-        }
-      }
-    });
   },
   loginUser: async (req, res) => {
-    const { email, password } = req.body.data;
+    const { email, password } = req.body;
 
     try {
-      const userDetails = await user.findOne({ email: email });
-      const passwordDB = userDetails.password;
-      bcrypt.compare(password, passwordDB, (err, result) => {
-        if (result) {
-          // res.send("Authentic user-Logged in.")
-          // generate jwt token and send to user browser
-          // best practice in this case is to set the payload for user-id and role(admin or normal-user)
-          const payload = {
-            id: userDetails._id,
-            email: userDetails.email,
-            user_name: userDetails.user_name,
-            role: userDetails.role,
-          };
+      const userDetails = await User.findOne({ email });
+      if (!userDetails) {
+        return res.status(404).send("User not found - create account first");
+      }
 
-          // check the jwtToken on client, whether it is out-dated or not?
-          const secretKey = process.env.SECRET_KEY;
-          const jwtTokenCheck = req.cookies.authToken;
-          jwt.verify(jwtTokenCheck, secretKey, async (err, result) => {
-            if (err) {
-              res.clearCookie("authToken");
-              const token = jwt.sign(payload, secretKey, {
-                algorithm: "HS256",
-                expiresIn: "7d",
-              });
-              // send an instant email to user
-              // create transporter
-              const transporter = nodemailer.createTransport({
-                service: "gmail",
-                auth: {
-                  user: process.env.ADMIN_EMAIL,
-                  pass: process.env.ADMIN_PASS,
-                },
-              });
-              // create email message
-              const mailOptions = {
-                from: process.env.ADMIN_EMAIL,
-                to: email,
-                subject: "Thank you!",
-                text: "Thank you",
-              };
+      const passwordMatch = await bcrypt.compare(
+        password,
+        userDetails.password
+      );
+      if (!passwordMatch) {
+        return res.status(401).send("Invalid credentials");
+      }
 
-              try {
-                const sentMail = await transporter.sendMail(mailOptions);
-                //  console.log(sentMail)
-                if (sentMail.accepted != null) {
-                  res
-                    .cookie("authToken", token, {
-                      httpOnly: true,
-                      sameSite: "strict",
-                      secure: false,
-                      maxAge: 7 * 24 * 60 * 60 * 1000,
-                    })
-                    .send("Successfully logged in-cookies sent");
-                } else {
-                  res.sendStatus(404);
-                }
-              } catch (error) {
-                console.log(error);
-              }
-            } else {
-              // give access to student
-              res.send("Successfully logged in-cookies are already set");
-            }
+      const payload = {
+        id: userDetails._id,
+        email: userDetails.email,
+        user_name: userDetails.user_name,
+        role: userDetails.role,
+      };
+
+      const tokenFromCookie = req.cookies.authToken;
+      jwt.verify(tokenFromCookie, process.env.SECRET_KEY, async (err) => {
+        if (err) {
+          // Generate new token
+          const token = jwt.sign(payload, process.env.SECRET_KEY, {
+            algorithm: "HS256",
+            expiresIn: "7d",
           });
+
+          const sentMail = await sendEmail(email, "New Login", "New Login");
+          if (!sentMail.accepted?.length) {
+            return res.status(500).send("Failed to send email");
+          }
+
+          res
+            .cookie("authToken", token, {
+              httpOnly: true,
+              sameSite: "strict",
+              secure: false,
+              maxAge: 7 * 24 * 60 * 60 * 1000,
+            })
+            .send("Successfully logged in - new cookie set");
         } else {
-          res.status(401).send("Invalid credentials");
+          res.send("Successfully logged in - cookie already valid");
         }
       });
     } catch (err) {
-      res.status(404).send("User not found-Create account first");
+      console.error(err);
+      res.status(500).send("Login failed due to server error");
     }
   },
+
   logoutUser: (req, res) => {
     res
       .clearCookie("authToken", {
@@ -206,7 +153,7 @@ const userController = {
     const user_id = req.query.user;
 
     try {
-      const usr = await user.findOne({ _id: user_id });
+      const usr = await User.findOne({ _id: user_id });
       // console.log(usr)
       const finalUser = {
         ...usr._doc,
