@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Building, Mail, Lock, Upload, User } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useFormik } from "formik";
+import getValidationSchema from "../AuthenticationSchema/ValidationSchema";
+import { useMutation } from "@tanstack/react-query";
+import { APIS } from "../../config/Config";
+// import getRandomName from "../functions/getRandomName";
 
 const AuthForm = () => {
   const { mode } = useParams();
@@ -10,25 +15,73 @@ const AuthForm = () => {
   useEffect(() => {
     setAuthMode(mode === "signup" ? "signup" : "signin");
   }, [mode]);
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [profileImage, setProfileImage] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+
+  const {
+    mutate,
+    data: user,
+    loading,
+    error,
+  } = useMutation({
+    mutationFn: async (formValues) => {
+      return mode === "signup"
+        ? await APIS.signup(formValues)
+        : await APIS.signin(formValues);
+    },
+    onSuccess: (data) => {
+      console.log(data);
+    },
+    onError: (err) => {
+      console.log(err);
+    },
+  });
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file) setProfileImage(URL.createObjectURL(file));
+    if (file) {
+      setProfileImage(URL.createObjectURL(file));
+      setImageFile(file);
+    }
   };
 
-  const handleSubmit = () => {
-    if (authMode === "signup" && password !== confirmPassword) {
+  const handleSubmit = (values) => {
+    if (authMode === "signup" && values.password !== values.confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
 
-    alert(authMode === "signin" ? "Signed In" : "Account Created");
+    // alert(authMode === "signin" ? "Signed In" : "Account Created");
+    if (authMode === "signup") {
+      const formData = new FormData();
+      formData.append("email",values.email);
+      formData.append("password",values.password);
+      formData.append("name", values.userName);
+      formData.append("role", "User");
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+      mutate(formData);
+    } else {
+      const data = {
+        email: values.email,
+        password: values.password
+      }
+      mutate(data)
+    }
   };
+
+  const formik = useFormik({
+    initialValues: {
+      userName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+    validationSchema: getValidationSchema(authMode),
+    enableReinitialize: true,
+    onSubmit: (values) => handleSubmit(values),
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1a1a] via-[#121212] to-black text-white px-4">
@@ -108,17 +161,42 @@ const AuthForm = () => {
                 <p className="text-xs text-gray-400">Upload profile picture</p>
               </div>
             )}
-
+            {authMode === "signup" && (
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  name="userName"
+                  placeholder="Enter user name"
+                  className="pl-10 w-full py-2 rounded bg-gray-700 text-white border border-gray-600 placeholder-gray-400 text-sm"
+                  value={formik.values.userName}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+                {formik.touched.userName && formik.errors.userName && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {formik.errors.userName}
+                  </p>
+                )}
+              </div>
+            )}
             {/* Email */}
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="email"
+                name="email"
                 placeholder="Email address"
                 className="pl-10 w-full py-2 rounded bg-gray-700 text-white border border-gray-600 placeholder-gray-400 text-sm"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formik.values.email}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
               />
+              {formik.touched.email && formik.errors.email && (
+                <p className="text-xs text-red-500 mt-1">
+                  {formik.errors.email}
+                </p>
+              )}
             </div>
 
             {/* Password */}
@@ -126,10 +204,12 @@ const AuthForm = () => {
               <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="password"
+                name="password"
                 placeholder="Password"
                 className="pl-10 w-full py-2 rounded bg-gray-700 text-white border border-gray-600 placeholder-gray-400 text-sm"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formik.values.password}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
               />
             </div>
 
@@ -139,17 +219,20 @@ const AuthForm = () => {
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <input
                   type="password"
+                  name="confirmPassword"
                   placeholder="Re-enter password"
                   className="pl-10 w-full py-2 rounded bg-gray-700 text-white border border-gray-600 placeholder-gray-400 text-sm"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  value={formik.values.confirmPassword}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                 />
               </div>
             )}
 
             {/* Submit Button */}
             <button
-              onClick={handleSubmit}
+              type="submit"
+              onClick={formik.handleSubmit}
               className="w-full bg-white text-black py-2 rounded hover:bg-gray-200 transition"
             >
               {authMode === "signin" ? "Sign In" : "Sign Up"}
