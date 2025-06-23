@@ -1,8 +1,9 @@
 import React from "react";
-import { Home, LandingPage, AuthenticationForm } from "./pages";
+import { Home, LandingPage, AuthenticationForm, Discover } from "./pages";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { APIS } from "../config/Config";
+import { AnalyticsGrap, Navbar } from "./components/index";
 
 function App() {
   // get the current active user
@@ -30,6 +31,7 @@ function App() {
   return (
     <div>
       <BrowserRouter>
+        <Navbar />
         <Routes>
           {!currentUser?.data?.id ? (
             <>
@@ -42,6 +44,8 @@ function App() {
           ) : (
             <Route path="/feed">
               <Route path="home" element={<Home />} />
+              <Route path="discover" element={<Discover />} />
+              <Route path="analytics" element={<AnalyticsGrap />} />
             </Route>
           )}
 

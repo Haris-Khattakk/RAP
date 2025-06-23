@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 // import getRandomName from "../functions/getRandomName";
 
+
 const AuthForm = () => {
   const { mode } = useParams();
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const AuthForm = () => {
   const {
     mutate,
     data: user,
-    loading,
+    isPending,
     error,
   } = useMutation({
     mutationFn: async (formValues) => {
@@ -30,7 +31,8 @@ const AuthForm = () => {
         : await APIS.signin(formValues);
     },
     onSuccess: (data) => {
-      console.log(data);
+      console.log("successfully login", data);
+      navigate("/feed/home");
     },
     onError: (err) => {
       console.log(err);
@@ -54,8 +56,8 @@ const AuthForm = () => {
     // alert(authMode === "signin" ? "Signed In" : "Account Created");
     if (authMode === "signup") {
       const formData = new FormData();
-      formData.append("email",values.email);
-      formData.append("password",values.password);
+      formData.append("email", values.email);
+      formData.append("password", values.password);
       formData.append("name", values.userName);
       formData.append("role", "User");
       if (imageFile) {
@@ -65,9 +67,9 @@ const AuthForm = () => {
     } else {
       const data = {
         email: values.email,
-        password: values.password
-      }
-      mutate(data)
+        password: values.password,
+      };
+      mutate(data);
     }
   };
 
@@ -233,17 +235,21 @@ const AuthForm = () => {
             <button
               type="submit"
               onClick={formik.handleSubmit}
-              className="w-full bg-white text-black py-2 rounded hover:bg-gray-200 transition"
+              disabled={isPending}
+              className={`w-full py-2 rounded transition ${
+                isPending
+                  ? "bg-gray-500 text-white cursor-not-allowed"
+                  : "bg-white text-black hover:bg-gray-200"
+              }`}
             >
-              {authMode === "signin" ? "Sign In" : "Sign Up"}
+              {isPending
+                ? authMode === "signin"
+                  ? "Signing In..."
+                  : "Signing Up..."
+                : authMode === "signin"
+                ? "Sign In"
+                : "Sign Up"}
             </button>
-
-            {/* Hint */}
-            {authMode === "signup" && (
-              <p className="text-xs text-center text-gray-400">
-                Demo mode: You can use any email and password
-              </p>
-            )}
           </div>
         </div>
 
