@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const user = require("./userModel");
+const User = require("./userModel");
 const comment = require("./commentModel");
 const like = require("./likesModel");
 const disLike = require("./disLikeModel");
@@ -10,7 +10,7 @@ const postSchema = mongoose.Schema(
     description: String,
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
     },
     location: String,
     likes: [

@@ -159,17 +159,29 @@ const delPost = async (postId) => {
   }
 };
 
-const getPosts = async ({ page, limit }) => {
+const getHomePosts = async ({ page, limit, currentUser }) => {
   // console.log(page, limit)
   try {
     const response = await axios.get(
-      `${Baseurl}/posts/getPosts?page=${page}&limit=${limit}`
+      `${Baseurl}/posts/getHomePosts?page=${page}&limit=${limit}&currentUser=${currentUser}`
     );
     return response;
   } catch (error) {
     return error;
   }
 };
+const getDiscoverPosts = async ({ page, limit, currentUser }) => {
+  // console.log(page, limit)
+  try {
+    const response = await axios.get(
+      `${Baseurl}/posts/getDiscoverPosts?page=${page}&limit=${limit}&currentUser=${currentUser}`
+    );
+    return response;
+  } catch (error) {
+    return error;
+  }
+};
+
 const getUserPosts = async ({ page, limit, userId }) => {
   // console.log(page, limit)
   try {
@@ -496,7 +508,8 @@ export const APIS = {
   getChats,
   createPost,
   updatePost,
-  getPosts,
+  getHomePosts,
+  getDiscoverPosts,
   getUserPosts,
   delPost,
   getSinglePost,

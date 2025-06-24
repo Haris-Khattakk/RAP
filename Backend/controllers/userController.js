@@ -169,8 +169,8 @@ const userController = {
     const follow_id = req.query.follow_id;
 
     try {
-      const followerDB = await user.findById(follower_id);
-      const followDB = await user.findById(follow_id);
+      const followerDB = await User.findById(follower_id);
+      const followDB = await User.findById(follow_id);
 
       if (followerDB && followDB) {
         // Check if already following
@@ -216,8 +216,8 @@ const userController = {
     // console.log(follower_id, follow_id)
 
     try {
-      const followerDB = await user.findById(follower_id);
-      const followDB = await user.findById(follow_id);
+      const followerDB = await User.findById(follower_id);
+      const followDB = await User.findById(follow_id);
 
       if (followerDB && followDB) {
         // Filter out follow_id from following array

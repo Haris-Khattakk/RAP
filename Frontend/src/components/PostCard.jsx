@@ -10,96 +10,266 @@ import {
   UserPlus,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { QueryClient, useMutation } from "@tanstack/react-query";
+import { APIS } from "../../config/Config";
+import { useState } from "react";
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, currentUser }) => {
+  const [agrees, setAgrees] = useState(post?.likes || []);
+  const [disAgrees, setDisAgrees] = useState(post?.disLikes || []);
+  const [followers, setFollowers] = useState(post?.owner?.followers || [])
+  // const queryClient = new QueryClient();
+
+  // mutation for agree
+  const { mutate: likeMutate } = useMutation({
+    mutationFn: async () => {
+      // eslint-disable-next-line no-useless-catch
+      try {
+        if (agrees?.some((agree) => agree?.owner === currentUser?.id)) {
+          await APIS.unLike(post._id);
+
+          setAgrees((prevAgrees) =>
+            prevAgrees.filter((agree) => agree?.owner !== currentUser?.id)
+          );
+        } else {
+          await APIS.like(post._id);
+          setAgrees((prevAgrees) => [
+            ...prevAgrees,
+            { owner: currentUser?.id, for_post: post._id },
+          ]);
+
+          setDisAgrees((prevDisagrees) => {
+            if (
+              prevDisagrees.some(
+                (disagree) => disagree.owner === currentUser?.id
+              )
+            ) {
+              APIS.unDisLike(post._id);
+              return prevDisagrees.filter(
+                (disagree) => disagree.owner !== currentUser?.id
+              );
+            }
+            return prevDisagrees;
+          });
+        }
+      } catch (error) {
+        throw error;
+      }
+      // throw new Error("Da")
+    },
+    onError: () => {
+      if (agrees.some((agree) => agree?.owner === currentUser?.id)) {
+        setAgrees((prevagrees) => [
+          ...prevagrees,
+          { owner: currentUser?.id, for_post: post._id },
+        ]);
+      } else {
+        setAgrees((prevagrees) =>
+          prevagrees.filter((agree) => agree.owner !== currentUser?.id)
+        );
+
+        if (disAgrees.some((dagree) => dagree?.owner === currentUser?.id)) {
+          setDisAgrees((prevdAgrees) => [
+            ...prevdAgrees,
+            { owner: currentUser?.id, for_post: post._id },
+          ]);
+        }
+      }
+    },
+  });
+  // mutation for disagree
+  const { mutate: disLikeMutate } = useMutation({
+    mutationFn: async () => {
+      // eslint-disable-next-line no-useless-catch
+      try {
+        if (disAgrees.some((disagree) => disagree?.owner === currentUser?.id)) {
+          await APIS.unDisLike(post._id);
+          setDisAgrees((prevDisagrees) =>
+            prevDisagrees.filter(
+              (disagree) => disagree.owner !== currentUser?.id
+            )
+          );
+        } else {
+          await APIS.disLike(post._id);
+          setDisAgrees((prevDisagrees) => [
+            ...prevDisagrees,
+            { owner: currentUser?.id, for_post: post._id },
+          ]);
+
+          setAgrees((prevAgrees) => {
+            if (prevAgrees.some((agree) => agree.owner === currentUser?.id)) {
+              APIS.unLike(post._id);
+              return prevAgrees.filter(
+                (agree) => agree.owner !== currentUser?.id
+              );
+            }
+            return prevAgrees;
+          });
+        }
+      } catch (error) {
+        throw error;
+      }
+      // throw new Error("Dasdas");
+    },
+    onError: () => {
+      // console.log(error);
+      if (disAgrees.some((disagree) => disagree?.owner === currentUser?.id)) {
+        setDisAgrees((prevDisagrees) => [
+          ...prevDisagrees,
+          { owner: currentUser?.id, for_post: post._id },
+        ]);
+      } else {
+        setDisAgrees((prevDisagrees) =>
+          prevDisagrees.filter((disagree) => disagree.owner !== currentUser?.id)
+        );
+
+        if (agrees.some((agree) => agree?.owner === currentUser?.id)) {
+          setAgrees((prevAgrees) => [
+            ...prevAgrees,
+            { owner: currentUser?.id, for_post: post._id },
+          ]);
+        }
+      }
+    },
+  });
+
+  // mutation for follow/unfollow
+  const {mutate: followMutate} = useMutation({
+    mutationFn: async ({follower, follow})=>{
+      return followers?.includes(follower) ? await APIS.unfollowUser(follower, follow) : await APIS.followUser(follower, follow);
+    },
+    onSuccess: ()=>{
+      followers?.includes(currentUser?.id) ? setFollowers(prevs=> prevs.filter(follower=> follower !== currentUser?.id)) : setFollowers(prevs=> [...prevs, currentUser?.id])
+    }
+  })
+
   return (
-    <div className="max-w-3xl w-full mx-auto bg-gray-800 border border-gray-700 text-white rounded-2xl overflow-hidden shadow-lg">
-      {/* Header */}
-      <div className="px-6 py-4 flex items-center justify-between bg-gray-900 border-b border-gray-700">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
-            {post.authorImage ? (
-              <img
-                src={post.authorImage}
-                alt={post.author}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User className="h-6 w-6 text-white" />
-            )}
+    <>
+      {post ? (
+        <div className="max-w-3xl w-full mx-auto bg-gray-800 border border-gray-700 text-white rounded-2xl overflow-hidden shadow-lg">
+          {/* Header */}
+          <div className="px-6 py-4 flex items-center justify-between bg-gray-900 border-b border-gray-700">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
+                {post?.owner?.image ? (
+                  <img
+                    src={post?.owner?.image}
+                    alt="user name"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="h-6 w-6 text-white" />
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div>
+                  <h4 className="text-white font-semibold text-base">
+                    {post?.owner?.user_name}
+                  </h4>
+                  <p className="text-gray-400 text-xs">{post?.createdAt}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 items-center">
+              <NavLink
+                to="/feed/analytics"
+                className="px-2 rounded-md py-1.5 bg-gray-800"
+              >
+                <BarChart className="h-4 w-4 text-blue-400" />
+              </NavLink>
+              {/* Follow Button */}
+              <button onClick={()=> followMutate({follower: currentUser?.id, follow: post?.owner?._id})} className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs">
+                {/* Only icon on mobile, full text on sm+ */}
+                {post?.owner?._id !== currentUser?.id && (
+                  <>
+                    {followers?.includes(currentUser?.id) ? (
+                      <span className="hidden sm:inline">UnFollow</span>
+                    ) : (
+                      <div className="flex">
+                        <UserPlus className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Follow</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div>
-              <h4 className="text-white font-semibold text-base">
-                {post.author}
-              </h4>
-              <p className="text-gray-400 text-xs">{post.timestamp}</p>
+          {/* Content */}
+          <div className="px-6 py-4 bg-gray-800">
+            {/* <h3 className="text-xl font-bold mb-2">{post?.title}</h3> */}
+            <div className="flex items-center w-full bg-gray-700 p-2 rounded-md justify-center text-gray-400 text-sm mb-2">
+              <MapPin className="h-4 w-4 text-blue-400 mr-1" />
+              <span>{post?.location}</span>
+            </div>
+            <p className="text-gray-300 text-base leading-relaxed mb-4">
+              {post?.description}
+            </p>
+
+            {/* Image */}
+            {post.media?.length > 0 &&
+              post.media?.map((med, index) => (
+                <div key={index} className="overflow-hidden rounded-lg">
+                  {med?.type.startsWith("image") ? (
+                    <img
+                      src={med?.url}
+                      alt="Post"
+                      className="w-full h-64 object-cover"
+                    />
+                  ) : (
+                    <video controls className="w-full h-64 object-cover">
+                      <source src={med?.url} type="video/mp4" />
+                    </video>
+                  )}
+                </div>
+              ))}
+          </div>
+
+          {/* Actions */}
+          <div className="px-6 py-4 border-t border-gray-700 bg-gray-900 text-sm">
+            <div className="flex justify-between items-center text-gray-300">
+              <div className="flex items-center gap-1">
+                <Heart
+                  className={`h-4 w-4 ${
+                    agrees.some((agree) => agree?.owner === currentUser?.id)
+                      ? "text-red-500"
+                      : "text-white"
+                  }`}
+                  onClick={likeMutate}
+                />
+                {agrees.length}
+              </div>
+              <div className="flex items-center gap-1">
+                <ThumbsDown
+                  className={`h-4 w-4 ${
+                    disAgrees.some(
+                      (dagree) => dagree?.owner === currentUser?.id
+                    )
+                      ? "text-orange-500"
+                      : "text-white"
+                  }`}
+                  onClick={disLikeMutate}
+                />
+                {disAgrees.length}
+              </div>
+              <div className="flex items-center gap-1">
+                <MessageSquare className="h-4 w-4 text-blue-400" />
+                {post.comments?.length}
+              </div>
+              <div className="flex items-center gap-1 text-green-400">
+                <Share2 className="h-4 w-4" />
+                <span>Share</span>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="flex gap-2 items-center">
-          <NavLink
-            to="/feed/analytics"
-            className="px-2 rounded-md py-1.5 bg-gray-800"
-          >
-            <BarChart className="h-4 w-4 text-blue-400" />
-          </NavLink>
-          {/* Follow Button */}
-          <button className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs">
-            {/* Only icon on mobile, full text on sm+ */}
-            <UserPlus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Follow</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-6 py-4 bg-gray-800">
-        <h3 className="text-xl font-bold mb-2">{post.title}</h3>
-        <div className="flex items-center w-full bg-gray-700 p-2 rounded-md justify-center text-gray-400 text-sm mb-2">
-          <MapPin className="h-4 w-4 text-blue-400 mr-1" />
-          <span>{post.location}</span>
-        </div>
-        <p className="text-gray-300 text-base leading-relaxed mb-4">
-          {post.description}
-        </p>
-
-        {/* Image */}
-        {post.images?.[0] && (
-          <div className="overflow-hidden rounded-lg">
-            <img
-              src={post.images[0]}
-              alt="Post"
-              className="w-full h-64 object-cover"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="px-6 py-4 border-t border-gray-700 bg-gray-900 text-sm">
-        <div className="flex justify-between items-center text-gray-300">
-          <div className="flex items-center gap-1">
-            <Heart className="h-4 w-4 text-red-500" />
-            {post.likes}
-          </div>
-          <div className="flex items-center gap-1">
-            <ThumbsDown className="h-4 w-4 text-orange-400" />
-            {post.dislikes}
-          </div>
-          <div className="flex items-center gap-1">
-            <MessageSquare className="h-4 w-4 text-blue-400" />
-            {post.comments}
-          </div>
-          <div className="flex items-center gap-1 text-green-400">
-            <Share2 className="h-4 w-4" />
-            <span>Share</span>
-          </div>
-        </div>
-      </div>
-    </div>
+      ) : (
+        <>Error Fetching post</>
+      )}
+    </>
   );
 };
 

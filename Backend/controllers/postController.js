@@ -1,4 +1,4 @@
-const user = require("../models/userModel");
+const User = require("../models/userModel");
 const post = require("../models/postModel");
 const like = require("../models/likesModel");
 const disLike = require("../models/disLikeModel");
@@ -95,13 +95,13 @@ const postController = {
         { $push: { media: { $each: ids } } }
       );
       // Step 6: Update user with the new post
-      await user.updateOne(
+      await User.updateOne(
         { _id: ownerId },
         { $push: { posts: created_post._id } }
       );
 
       // create notification for all followers
-      const followers = await user
+      const followers = await User
         .findOne({ _id: ownerId })
         .select("user_name followers");
       // console.log(followers)
@@ -240,14 +240,15 @@ const postController = {
         .json({ error: "Internal Server Error", details: error.message });
     }
   },
-  getPosts: async (req, res) => {
+  getHomePosts: async (req, res) => {
     // console.log(req.query);
+    const currentUser = req.query.currentUser;
     const page = parseInt(req.query.page);
     const limit = parseInt(req.query.limit);
     const skip = (page - 1) * limit;
 
     try {
-      const posts = await post
+      const psts = await post
         .find({})
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -260,6 +261,8 @@ const postController = {
           populate: [{ path: "likes" }, { path: "disLikes" }],
         });
 
+      // filter out posts for only following/following owner's posts will be fetched
+      const posts = psts.filter(post=> post.owner?.followers?.includes(currentUser))
       // console.log(posts)
       const total = await post.countDocuments();
       // console.log(`total: ${total} || fetched: ${posts.length}`)
@@ -305,9 +308,92 @@ const postController = {
           ...post.toObject(),
           media: mediaUrls,
           owner: {
-            ...post.owner.toObject(),
-            image: post.owner.image?.data
-              ? `data:image/png;base64,${post.owner.image.data.toString(
+            ...post?.owner?.toObject(),
+            image: post.owner?.image?.data
+              ? `data:image/png;base64,${post.owner?.image?.data.toString(
+                  "base64"
+                )}`
+              : null,
+          },
+        };
+      });
+
+      res.json({ data: updatedPosts, hasMore });
+    } catch (error) {
+      console.log("Error fetching posts:", error);
+      res.status(500).send({ error: "Internal Server Error" });
+    }
+  },
+  getDiscoverPosts: async (req, res) => {
+    // console.log(req.query);
+    const currentUser = req.query.currentUser;
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const skip = (page - 1) * limit;
+
+    try {
+      const psts = await post
+        .find({})
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("owner")
+        .populate("likes")
+        .populate("disLikes")
+        .populate({
+          path: "media",
+          populate: [{ path: "likes" }, { path: "disLikes" }],
+        });
+
+      // console.log(posts)
+      const posts = psts.filter(post=> !post.owner?.followers?.includes(currentUser))
+      const total = await post.countDocuments();
+      // console.log(`total: ${total} || fetched: ${posts.length}`)
+      const hasMore = skip + posts.length < total;
+      // console.log(hasMore)
+
+      const updatedPosts = posts.map((post) => {
+        const mediaUrls = post.media
+          .map((file) => {
+            // console.log(file)
+            const fileData = file.toObject();
+            const fileExt = fileData.identifier.filename
+              .split(".")
+              .pop()
+              ?.toLowerCase();
+            const mediaType = ["mp4", "webm", "mov"].includes(fileExt)
+              ? "video"
+              : "image";
+            const ownerId =
+              post.owner?._id?.toString() || post.owner?.toString();
+
+            if (!ownerId) {
+              console.error("Missing owner ID for post:", post._id);
+              return null;
+            }
+
+            return {
+              url: `${req.protocol}://${req.get("host")}/uploads/${ownerId}/${
+                fileData.identifier.filename
+              }`,
+              type: mediaType,
+              filename: fileData.identifier.filename,
+              likes: file.likes,
+              disLikes: file.disLikes,
+              of_post: file.of_post,
+              owner: file.owner,
+              _id: file._id,
+            };
+          })
+          .filter(Boolean);
+
+        return {
+          ...post.toObject(),
+          media: mediaUrls,
+          owner: {
+            ...post?.owner?.toObject(),
+            image: post.owner?.image?.data
+              ? `data:image/png;base64,${post.owner?.image?.data.toString(
                   "base64"
                 )}`
               : null,
@@ -491,7 +577,7 @@ const postController = {
       await disLike.deleteMany({ for_post: postId });
       // remove post model
       await post.deleteOne({ _id: postId });
-      await user.updateOne({ _id: userDets.id }, { $pull: { posts: postId } });
+      await User.updateOne({ _id: userDets.id }, { $pull: { posts: postId } });
       res.send("post deleted");
     } catch (error) {
       res.send(error);
@@ -515,7 +601,7 @@ const postController = {
       });
 
       if (dis_liked_remove) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { disLikes: dis_liked_remove._id } }
         );
@@ -527,7 +613,7 @@ const postController = {
       const liked = await like.create(data);
       // console.log(liked)
       if (liked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $push: { likes: liked._id } }
         );
@@ -571,7 +657,7 @@ const postController = {
       });
 
       if (like_removed) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { likes: like_removed._id } }
         );
@@ -601,7 +687,7 @@ const postController = {
         $and: [{ for_post: post_id }, { owner: owner_id }],
       });
       if (un_liked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { likes: un_liked._id } }
         );
@@ -612,7 +698,7 @@ const postController = {
       }
       const disLiked = await disLike.create(data);
       if (disLiked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $push: { disLikes: disLiked._id } }
         );
@@ -655,7 +741,7 @@ const postController = {
       });
 
       if (dis_like_removed) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { disLikes: dis_like_removed._id } }
         );
@@ -686,7 +772,7 @@ const postController = {
       });
 
       if (dis_liked_remove) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { disLikes: dis_liked_remove._id } }
         );
@@ -698,7 +784,7 @@ const postController = {
       const liked = await like.create(data);
       // console.log(liked)
       if (liked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $push: { likes: liked._id } }
         );
@@ -728,7 +814,7 @@ const postController = {
       });
 
       if (like_removed) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { likes: like_removed._id } }
         );
@@ -758,7 +844,7 @@ const postController = {
         $and: [{ for_post: post_id }, { owner: owner_id }],
       });
       if (un_liked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { likes: un_liked._id } }
         );
@@ -770,7 +856,7 @@ const postController = {
       }
       const disLiked = await disLike.create(data);
       if (disLiked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $push: { disLikes: disLiked._id } }
         );
@@ -801,7 +887,7 @@ const postController = {
       });
 
       if (dis_like_removed) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { disLikes: dis_like_removed._id } }
         );
@@ -895,7 +981,7 @@ const postController = {
         { $push: { comments: newComment._id } },
         { new: true }
       );
-      await user.updateOne(
+      await User.updateOne(
         { _id: ownerId },
         { $push: { comments: newComment._id } }
       );
@@ -1158,7 +1244,7 @@ const postController = {
         { comments: commentId },
         { $pull: { comments: commentId } }
       );
-      await user.updateOne(
+      await User.updateOne(
         { _id: userDets.id },
         { $pull: { posts: commentId } }
       );
@@ -1264,7 +1350,7 @@ const postController = {
       });
 
       if (dis_liked_remove) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { disLikes: dis_liked_remove._id } }
         );
@@ -1276,7 +1362,7 @@ const postController = {
       const liked = await like.create(data);
       // console.log(liked)
       if (liked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $push: { likes: liked._id } }
         );
@@ -1320,7 +1406,7 @@ const postController = {
       });
       // console.log(like_removed)
       if (like_removed) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { likes: like_removed._id } }
         );
@@ -1350,7 +1436,7 @@ const postController = {
         $and: [{ for_post: comntId }, { owner: owner_id }],
       });
       if (un_liked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { likes: un_liked._id } }
         );
@@ -1362,7 +1448,7 @@ const postController = {
       const disLiked = await disLike.create(data);
       // console.log(disLiked)
       if (disLiked) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $push: { disLikes: disLiked._id } }
         );
@@ -1406,7 +1492,7 @@ const postController = {
       });
       // console.log(dis_like_removed)
       if (dis_like_removed) {
-        await user.updateOne(
+        await User.updateOne(
           { _id: owner_id },
           { $pull: { disLikes: dis_like_removed._id } }
         );
@@ -1498,7 +1584,7 @@ const postController = {
         { $push: { comments: newComment._id } },
         {new: true}
       );
-      await user.updateOne(
+      await User.updateOne(
         { _id: ownerId },
         { $push: { comments: newComment._id } }
       );

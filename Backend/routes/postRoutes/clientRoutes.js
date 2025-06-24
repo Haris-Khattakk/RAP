@@ -18,7 +18,8 @@ router.put("/updatePost/:id", upload_memory.array("files"),
   nsfwFilterMiddleware,
   saveFilesToDisk, postController.updatePost);
 
-router.get("/getPosts", postController.getPosts);
+router.get("/getHomePosts", postController.getHomePosts);
+router.get("/getDiscoverPosts", postController.getDiscoverPosts);
 router.get("/getUserPosts", postController.getUserPosts);
 router.get("/getSinglePost", postController.getSingPost);
 
