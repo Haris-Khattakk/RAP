@@ -19,7 +19,7 @@ const Navbar = () => {
   return (
     <>
       {/* Top Navbar */}
-      <nav className="w-full bg-black text-white px-4 py-2 shadow flex items-center justify-between">
+      <nav className="w-full bg-black sticky top-0 text-white px-4 py-2 shadow flex items-center justify-between">
         <div className="text-lg font-semibold">RateAProperty</div>
 
         {/* Center Tabs */}
@@ -78,9 +78,13 @@ const Navbar = () => {
               <Bell className="w-5 h-5" />
               <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-black"></span>
             </button>
-            <button title="Profile" className="text-gray-300 hover:text-white">
+            <NavLink
+              to="/feed/profile"
+              title="Profile"
+              className="text-gray-300 hover:text-white"
+            >
               <User className="w-5 h-5" />
-            </button>
+            </NavLink>
           </div>
 
           {/* Mobile Icons */}
@@ -133,10 +137,13 @@ const Navbar = () => {
           <Bell className="w-5 h-5 mb-1" />
           Notification
         </button>
-        <button className="flex flex-col items-center px-2 py-1 text-xs text-gray-400">
+        <NavLink
+          to="/feed/profile"
+          className="flex flex-col items-center px-2 py-1 text-xs text-gray-400"
+        >
           <User className="w-5 h-5 mb-1" />
           Profile
-        </button>
+        </NavLink>
       </div>
 
       {/* Create Post Modal */}
@@ -149,7 +156,9 @@ const Navbar = () => {
             >
               <X className="w-5 h-5" />
             </button>
-            <CreatePostForm />
+
+            {/* Pass the function to close the modal */}
+            <CreatePostForm onClose={() => setShowPostModal(false)} />
           </div>
         </div>
       )}

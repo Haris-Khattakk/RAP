@@ -1,5 +1,11 @@
 import React from "react";
-import { Home, LandingPage, AuthenticationForm, Discover } from "./pages";
+import {
+  Home,
+  LandingPage,
+  AuthenticationForm,
+  Discover,
+  Profile,
+} from "./pages";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { APIS } from "../config/Config";
@@ -46,6 +52,7 @@ function App() {
               <Route path="home" element={<Home />} />
               <Route path="discover" element={<Discover />} />
               <Route path="analytics" element={<AnalyticsGrap />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
           )}
 

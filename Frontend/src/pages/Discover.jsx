@@ -53,7 +53,7 @@ function Discover() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div className="p-2 bg-white/10 ">
+    <div className="p-2 bg-gray-600 ">
       {posts?.pages?.map((page, pageIndex) =>
         page?.data?.map((post, idx) => (
           <PostCard

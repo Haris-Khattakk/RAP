@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   User,
   Heart,
@@ -12,12 +12,12 @@ import {
 import { NavLink } from "react-router-dom";
 import { QueryClient, useMutation } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
-import { useState } from "react";
+import { getTimeAgo } from "../functions/GetTimeAgo";
 
 const PostCard = ({ post, currentUser }) => {
   const [agrees, setAgrees] = useState(post?.likes || []);
   const [disAgrees, setDisAgrees] = useState(post?.disLikes || []);
-  const [followers, setFollowers] = useState(post?.owner?.followers || [])
+  const [followers, setFollowers] = useState(post?.owner?.followers || []);
   // const queryClient = new QueryClient();
 
   // mutation for agree
@@ -134,19 +134,25 @@ const PostCard = ({ post, currentUser }) => {
   });
 
   // mutation for follow/unfollow
-  const {mutate: followMutate} = useMutation({
-    mutationFn: async ({follower, follow})=>{
-      return followers?.includes(follower) ? await APIS.unfollowUser(follower, follow) : await APIS.followUser(follower, follow);
+  const { mutate: followMutate } = useMutation({
+    mutationFn: async ({ follower, follow }) => {
+      return followers?.includes(follower)
+        ? await APIS.unfollowUser(follower, follow)
+        : await APIS.followUser(follower, follow);
     },
-    onSuccess: ()=>{
-      followers?.includes(currentUser?.id) ? setFollowers(prevs=> prevs.filter(follower=> follower !== currentUser?.id)) : setFollowers(prevs=> [...prevs, currentUser?.id])
-    }
-  })
+    onSuccess: () => {
+      followers?.includes(currentUser?.id)
+        ? setFollowers((prevs) =>
+            prevs.filter((follower) => follower !== currentUser?.id)
+          )
+        : setFollowers((prevs) => [...prevs, currentUser?.id]);
+    },
+  });
 
   return (
     <>
       {post ? (
-        <div className="max-w-3xl w-full mx-auto bg-gray-800 border border-gray-700 text-white rounded-2xl overflow-hidden shadow-lg">
+        <div className="max-w-3xl w-full mx-auto mt-2 bg-gray-800 border border-gray-700 text-white rounded-2xl overflow-hidden shadow-lg">
           {/* Header */}
           <div className="px-6 py-4 flex items-center justify-between bg-gray-900 border-b border-gray-700">
             <div className="flex items-center gap-4">
@@ -167,7 +173,9 @@ const PostCard = ({ post, currentUser }) => {
                   <h4 className="text-white font-semibold text-base">
                     {post?.owner?.user_name}
                   </h4>
-                  <p className="text-gray-400 text-xs">{post?.createdAt}</p>
+                  <p className="text-gray-400 text-xs">
+                    {getTimeAgo(post?.createdAt)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -180,7 +188,15 @@ const PostCard = ({ post, currentUser }) => {
                 <BarChart className="h-4 w-4 text-blue-400" />
               </NavLink>
               {/* Follow Button */}
-              <button onClick={()=> followMutate({follower: currentUser?.id, follow: post?.owner?._id})} className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs">
+              <button
+                onClick={() =>
+                  followMutate({
+                    follower: currentUser?.id,
+                    follow: post?.owner?._id,
+                  })
+                }
+                className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs"
+              >
                 {/* Only icon on mobile, full text on sm+ */}
                 {post?.owner?._id !== currentUser?.id && (
                   <>

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { ImagePlus, X, User } from "lucide-react";
 
-const CreatePostForm = () => {
+const CreatePostForm = ({ onClose }) => {
   const [form, setForm] = useState({
     title: "",
     propertyType: "",
@@ -10,15 +10,19 @@ const CreatePostForm = () => {
     images: [],
   });
 
+  const fileInputRef = useRef(null);
+
   const currentUser = {
     name: "Haris Khan",
-    image: "", // Set image URL here if available
+    image: "",
   };
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "images") {
-      setForm({ ...form, images: [...files] });
+      const newImages = [...form.images, ...Array.from(files)];
+      setForm({ ...form, images: newImages });
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } else {
       setForm({ ...form, [name]: value });
     }
@@ -33,11 +37,31 @@ const CreatePostForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log("Form submitted:", form);
+    onClose(); // Optional: close on submit
+  };
+
+  const handleCancel = () => {
+    setForm({
+      title: "",
+      propertyType: "",
+      location: "",
+      description: "",
+      images: [],
+    });
+    onClose(); // Close the modal
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-white max-w-2xl w-full rounded-xl shadow-xl p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
+      <div className="bg-white max-w-2xl w-full rounded-xl shadow-xl p-6 overflow-y-auto max-h-[calc(100vh-4rem)] relative">
+        {/* Top-right close button */}
+        <button
+          onClick={handleCancel}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* User Info */}
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center overflow-hidden">
@@ -146,15 +170,17 @@ const CreatePostForm = () => {
                 name="images"
                 accept="image/*"
                 multiple
+                ref={fileInputRef}
                 onChange={handleChange}
                 className="hidden"
               />
             </label>
 
-            {/* Preview: Mobile - Horizontal scroll | Desktop - Grid */}
+            {/* Preview: Desktop + Mobile Scroll */}
             {form.images.length > 0 && (
               <div className="mt-4">
-                <div className="grid sm:grid-cols-3 gap-4 hidden sm:grid">
+                {/* Desktop Grid */}
+                <div className="hidden sm:grid sm:grid-cols-3 gap-4">
                   {form.images.map((img, index) => (
                     <div
                       key={index}
@@ -176,7 +202,7 @@ const CreatePostForm = () => {
                   ))}
                 </div>
 
-                {/* Mobile horizontal scroll */}
+                {/* Mobile Scroll */}
                 <div className="sm:hidden flex gap-4 overflow-x-auto pb-2 mt-2">
                   {form.images.map((img, index) => (
                     <div
@@ -206,6 +232,7 @@ const CreatePostForm = () => {
           <div className="flex justify-end gap-4 pt-4">
             <button
               type="button"
+              onClick={handleCancel}
               className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
             >
               Cancel
