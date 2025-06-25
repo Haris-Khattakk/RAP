@@ -13,6 +13,7 @@ import { NavLink } from "react-router-dom";
 import { QueryClient, useMutation } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 import { getTimeAgo } from "../functions/GetTimeAgo";
+import { useFollowMutation } from "../react-query/follow&unfollowMutation";
 
 const PostCard = ({ post, currentUser }) => {
   const [agrees, setAgrees] = useState(post?.likes || []);
@@ -134,20 +135,13 @@ const PostCard = ({ post, currentUser }) => {
   });
 
   // mutation for follow/unfollow
-  const { mutate: followMutate } = useMutation({
-    mutationFn: async ({ follower, follow }) => {
-      return followers?.includes(follower)
-        ? await APIS.unfollowUser(follower, follow)
-        : await APIS.followUser(follower, follow);
-    },
-    onSuccess: () => {
-      followers?.includes(currentUser?.id)
-        ? setFollowers((prevs) =>
-            prevs.filter((follower) => follower !== currentUser?.id)
-          )
-        : setFollowers((prevs) => [...prevs, currentUser?.id]);
-    },
-  });
+  const { mutate: followMutate } = useFollowMutation({followers: post?.owner?.followers});
+  const handleFollow = () => {
+    followMutate({
+      follower: currentUser?.id,
+      follow: post?.owner?._id,
+    });
+  };
 
   return (
     <>
@@ -164,6 +158,7 @@ const PostCard = ({ post, currentUser }) => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
+                  
                   <User className="h-6 w-6 text-white" />
                 )}
               </div>
@@ -189,12 +184,7 @@ const PostCard = ({ post, currentUser }) => {
               </NavLink>
               {/* Follow Button */}
               <button
-                onClick={() =>
-                  followMutate({
-                    follower: currentUser?.id,
-                    follow: post?.owner?._id,
-                  })
-                }
+                onClick={handleFollow}
                 className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs"
               >
                 {/* Only icon on mobile, full text on sm+ */}

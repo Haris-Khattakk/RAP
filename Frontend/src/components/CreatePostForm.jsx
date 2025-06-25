@@ -3,7 +3,7 @@ import { ImagePlus, X, User } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 
-const CreatePostForm = ({ currentUser, onClose }) => {
+const CreatePostForm = ({ currentUser, profile, onClose }) => {
   const [form, setForm] = useState({
     title: "",
     propertyType: "",
@@ -12,6 +12,7 @@ const CreatePostForm = ({ currentUser, onClose }) => {
     images: [],
   });
 
+  // console.log(profile)
   const [isEdit, setIsEdit] = useState(false);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
@@ -32,7 +33,7 @@ const CreatePostForm = ({ currentUser, onClose }) => {
       }
     },
     onSuccess: async (newPost) => {
-      queryClient.setQueryData(["HomePosts", currentUser?.id], (oldData) => {
+      queryClient.setQueryData(["HomePosts", currentUser?._id], (oldData) => {
         if (!oldData) return [newPost];
         return [newPost, ...oldData];
       });
@@ -93,7 +94,7 @@ const CreatePostForm = ({ currentUser, onClose }) => {
     e.preventDefault();
     const formData = new FormData();
     // console.log(currentUser)
-    formData.append("owner", currentUser?.id);
+    formData.append("owner", currentUser?._id);
     formData.append("title", form.title);
     formData.append("propertyType", form.propertyType);
     formData.append("description", form.description);
@@ -143,10 +144,10 @@ const CreatePostForm = ({ currentUser, onClose }) => {
         {/* User Info */}
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center overflow-hidden">
-            {currentUser?.image ? (
+            {profile?.image ? (
               <img
-                src={currentUser?.image}
-                alt={currentUser?.user_name}
+                src={profile?.image}
+                alt={profile?.user_name}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -155,7 +156,7 @@ const CreatePostForm = ({ currentUser, onClose }) => {
           </div>
           <div>
             <h3 className="text-gray-800 font-semibold text-base">
-              {currentUser?.user_name}
+              {profile?.user_name}
             </h3>
             <p className="text-gray-500 text-xs">Posting publicly</p>
           </div>

@@ -188,7 +188,8 @@ const getUserPosts = async ({ page, limit, userId }) => {
     const response = await axios.get(
       `${Baseurl}/posts/getUserPosts?user=${userId}&page=${page}&limit=${limit}`
     );
-    return response;
+    // console.log(response)
+    return response.data
   } catch (error) {
     return error;
   }

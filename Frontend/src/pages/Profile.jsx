@@ -1,6 +1,14 @@
-import React, { useState } from "react";
-import { Grid3X3, Users, UserCheck } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Grid3X3, Users, UserCheck, UserPlus } from "lucide-react";
 import { PostCard, Followers } from "../components/index";
+import { useLocation } from "react-router-dom";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useFollowMutation } from "../react-query/follow&unfollowMutation";
+import { APIS } from "../../config/Config";
 
 const dummyPosts = [
   { id: 1, image: "https://source.unsplash.com/random/300x300?sig=1" },
@@ -20,7 +28,67 @@ const dummyFollowing = [
 ];
 
 export default function ProfileSection() {
-  const [activeTab, setActiveTab] = useState("following");
+  const [activeTab, setActiveTab] = useState("posts");
+  // const [userPosts, ]
+  const LIMIT = 10;
+
+  const location = useLocation();
+  const currentUser = location.state?.currentUser;
+
+  const queryClient = useQueryClient();
+  const profile = queryClient.getQueryData([
+    "currentProfile",
+    currentUser?.id,
+  ]).data;
+
+  // get user posts
+  const {
+    data: userPosts,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["userPosts", profile?._id],
+    queryFn: async ({ pageParam = 1 }) => {
+      return await APIS.getUserPosts({
+        page: pageParam,
+        limit: LIMIT,
+        userId: profile?._id,
+      });
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage?.hasMore ? lastPage?.nextPage : undefined,
+    enabled: !!profile?._id,
+  });
+
+  
+  // mutation for follow/unfollow
+  const { mutate: followMutate } = useFollowMutation({
+    followers: profile?.followers,
+  });
+  const handleFollow = () => {
+    followMutate({
+      follower: currentUser?.id,
+      follow: profile?._id,
+    });
+  };
+
+  useEffect(() => {
+    const onScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } =
+        document.documentElement;
+      if (
+        scrollTop + clientHeight >= scrollHeight - 100 &&
+        hasNextPage &&
+        !isFetchingNextPage
+      ) {
+        fetchNextPage();
+      }
+    };
+
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
     <div className="w-full bg-gray-600 py-4 min-h-screen">
@@ -28,23 +96,37 @@ export default function ProfileSection() {
         {/* Top Info */}
         <div className="flex flex-col md:flex-row items-center md:items-start md:justify-between gap-6">
           <img
-            src="https://i.pravatar.cc/150?img=5"
+            src={profile?.image}
             className="w-28 h-28 rounded-full object-cover border-4 border-gray-700 shadow-md"
             alt="Profile"
           />
           <div className="flex-1 text-center md:text-left space-y-2">
-            <h1 className="text-2xl font-bold">hariskhan_</h1>
-            <p className="text-sm text-[#aaa]">
+            <h1 className="text-2xl font-bold">{profile?.user_name}</h1>
+            {/* <p className="text-sm text-[#aaa]">
               Web Developer | Love to build UIs | React & Tailwind
-            </p>
-            <div className="flex gap-3 justify-center md:justify-start mt-3">
-              <button className="bg-white text-black px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
-                Follow
-              </button>
-              <button className="border border-gray-500 px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-700 transition">
-                Message
-              </button>
-            </div>
+            </p> */}
+            {profile?._id !== currentUser?.id && (
+              <div className="flex gap-3 justify-center md:justify-start mt-3">
+                <button
+                  onClick={handleFollow}
+                  className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs"
+                >
+                  {/* Only icon on mobile, full text on sm+ */}
+
+                  <>
+                    {
+                      <div className="flex">
+                        <UserPlus className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Follow</span>
+                      </div>
+                    }
+                  </>
+                </button>
+                <button className="border border-gray-500 px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-700 transition">
+                  Message
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -52,19 +134,19 @@ export default function ProfileSection() {
         <div className="flex justify-around text-center mt-8 mb-4">
           <div>
             <h2 className="text-xl font-semibold text-white">
-              {dummyPosts.length}
+              {profile?.posts?.length}
             </h2>
             <p className="text-sm text-gray-400">Posts</p>
           </div>
           <div>
             <h2 className="text-xl font-semibold text-white">
-              {dummyFollowers.length}
+              {profile?.followers?.length}
             </h2>
             <p className="text-sm text-gray-400">Followers</p>
           </div>
           <div>
             <h2 className="text-xl font-semibold text-white">
-              {dummyFollowing.length}
+              {profile?.following?.length}
             </h2>
             <p className="text-sm text-gray-400">Following</p>
           </div>
@@ -102,9 +184,16 @@ export default function ProfileSection() {
 
         {/* Tab Content */}
         <div className="mt-6">
-          {activeTab === "posts" && <PostCard posts={dummyPosts} />}
-          {activeTab === "followers" && <Followers users={dummyFollowers} />}
-          {activeTab === "following" && <Followers users={dummyFollowing} />}
+          {activeTab === "posts" &&
+             userPosts?.pages.map((page) =>
+              page.data.map((post) => <PostCard key={post._id} post={post} />)
+            )}
+          {activeTab === "followers" && (
+            <Followers users={profile?.followers} />
+          )}
+          {activeTab === "following" && (
+            <Followers users={profile?.following} />
+          )}
         </div>
       </div>
     </div>

@@ -151,9 +151,9 @@ const userController = {
   },
   getUser: async (req, res) => {
     const user_id = req.query.user;
-
+    console.log(user_id)
     try {
-      const usr = await User.findOne({ _id: user_id });
+      const usr = await User.findOne({ _id: user_id }).populate("followers").populate("following");
       // console.log(usr)
       const finalUser = {
         ...usr._doc,
