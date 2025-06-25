@@ -1,7 +1,9 @@
 import React, { useState, useRef } from "react";
 import { ImagePlus, X, User } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { APIS } from "../../config/Config";
 
-const CreatePostForm = ({ onClose }) => {
+const CreatePostForm = ({ currentUser, onClose }) => {
   const [form, setForm] = useState({
     title: "",
     propertyType: "",
@@ -10,12 +12,65 @@ const CreatePostForm = ({ onClose }) => {
     images: [],
   });
 
+  const [isEdit, setIsEdit] = useState(false);
   const fileInputRef = useRef(null);
+  const queryClient = useQueryClient();
 
-  const currentUser = {
-    name: "Haris Khan",
-    image: "",
-  };
+  const { mutate: createPostMutate } = useMutation({
+    mutationFn: async (formData) => {
+      // eslint-disable-next-line no-useless-catch
+      try {
+        const res = await APIS.createPost(formData);
+        if (res.status === 400) {
+          throw new Error(
+            "Your post appears to violate our community guidelines (e.g., adult or harmful content). Please review and edit your content."
+          );
+        }
+        return res;
+      } catch (error) {
+        throw error;
+      }
+    },
+    onSuccess: async (newPost) => {
+      queryClient.setQueryData(["HomePosts", currentUser?.id], (oldData) => {
+        if (!oldData) return [newPost];
+        return [newPost, ...oldData];
+      });
+    },
+  });
+
+  const { mutate: updatePostMutate } = useMutation({
+    mutationFn: async ({ postId, formData }) => {
+      // eslint-disable-next-line no-useless-catch
+      try {
+        const res = await APIS.updatePost(postId, formData);
+        if (res.status === 400) {
+          throw new Error(
+            "Your post appears to violate our community guidelines (e.g., adult or harmful content). Please review and edit your content."
+          );
+        }
+        return res;
+      } catch (error) {
+        throw error;
+      }
+    },
+    onSuccess: (updatedPost) => {
+      queryClient.invalidateQueries({ queryKey: ["HomePosts"] });
+      queryClient.setQueryData(["HomePosts"], (oldData) => {
+        if (!oldData) return oldData;
+
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page) => ({
+            ...page,
+            data: page.data.map((post) =>
+              post._id === updatedPost._id ? updatedPost : post
+            ),
+          })),
+        };
+      });
+    },
+  });
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -36,8 +91,31 @@ const CreatePostForm = ({ onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Form submitted:", form);
-    onClose(); // Optional: close on submit
+    const formData = new FormData();
+    // console.log(currentUser)
+    formData.append("owner", currentUser?.id);
+    formData.append("title", form.title);
+    formData.append("propertyType", form.propertyType);
+    formData.append("description", form.description);
+    formData.append("location", form.location);
+    // console.log(selectedMedia)
+    const existingFiles = form.images.map((item) => item.url);
+    formData.append("existingFiles", existingFiles);
+    // Only append new media files (not existing)
+    form.images.forEach((item) => {
+      if (item.file) {
+        formData.append(`files`, item.file);
+      }
+    });
+
+    // submit to backend
+    if(isEdit){
+      // ///////////////////////////////////////////
+      // note: pass post id in bellow before making update request
+      updatePostMutate(formData)
+    }else{
+      createPostMutate(formData);
+    }
   };
 
   const handleCancel = () => {
@@ -65,10 +143,10 @@ const CreatePostForm = ({ onClose }) => {
         {/* User Info */}
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center overflow-hidden">
-            {currentUser.image ? (
+            {currentUser?.image ? (
               <img
-                src={currentUser.image}
-                alt={currentUser.name}
+                src={currentUser?.image}
+                alt={currentUser?.user_name}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -77,7 +155,7 @@ const CreatePostForm = ({ onClose }) => {
           </div>
           <div>
             <h3 className="text-gray-800 font-semibold text-base">
-              {currentUser.name}
+              {currentUser?.user_name}
             </h3>
             <p className="text-gray-500 text-xs">Posting publicly</p>
           </div>

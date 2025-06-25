@@ -13,7 +13,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { CreatePostForm } from "./index";
 
-const Navbar = () => {
+const Navbar = ({currentUser}) => {
   const [showPostModal, setShowPostModal] = useState(false);
 
   return (
@@ -158,7 +158,7 @@ const Navbar = () => {
             </button>
 
             {/* Pass the function to close the modal */}
-            <CreatePostForm onClose={() => setShowPostModal(false)} />
+            <CreatePostForm currentUser={currentUser} onClose={() => setShowPostModal(false)} />
           </div>
         </div>
       )}

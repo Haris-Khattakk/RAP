@@ -37,7 +37,7 @@ function App() {
   return (
     <div>
       <BrowserRouter>
-        <Navbar />
+        <Navbar currentUser={currentUser?.data} />
         <Routes>
           {!currentUser?.data?.id ? (
             <>
