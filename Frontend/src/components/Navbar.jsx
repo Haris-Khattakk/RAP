@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { CreatePostForm } from "./index";
+import { CreatePostForm } from "./models/index";
 import { useQuery } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 

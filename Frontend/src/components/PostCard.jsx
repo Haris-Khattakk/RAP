@@ -8,19 +8,32 @@ import {
   MapPin,
   BarChart,
   UserPlus,
+  MoreVertical,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { QueryClient, useMutation } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 import { getTimeAgo } from "../functions/GetTimeAgo";
 import { useFollowMutation } from "../react-query/follow&unfollowMutation";
+import { MenuOption } from "./ui/index";
+import { Delete, CreatePostForm, Share } from "./models/index";
+import { CommentSection } from "../pages/index";
 
 const PostCard = ({ post, currentUser }) => {
   const [agrees, setAgrees] = useState(post?.likes || []);
   const [disAgrees, setDisAgrees] = useState(post?.disLikes || []);
   const [followers, setFollowers] = useState(post?.owner?.followers || []);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [postToEdit, setPostToEdit] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [showCommentSection, setShowCommentSection] = useState(false);
+
+
   // const queryClient = new QueryClient();
 
+  const shareUrl = `https://rateaproperty.com/post/${post?._id}`;
 
   // mutation for agree
   const { mutate: likeMutate } = useMutation({
@@ -136,7 +149,7 @@ const PostCard = ({ post, currentUser }) => {
   });
 
   // mutation for follow/unfollow
-  const { mutate: followMutate } = useFollowMutation({followers});
+  const { mutate: followMutate } = useFollowMutation({ followers });
   const handleFollow = () => {
     followMutate({
       follower: currentUser?.id,
@@ -146,11 +159,31 @@ const PostCard = ({ post, currentUser }) => {
 
   const navigate = useNavigate();
 
-  const handleNavtoProfile = (profileId)=>{
-    navigate("/feed/profile",{
-      state: {profileId, currentUser}
-    })  
-  }
+  const handleNavtoProfile = (profileId) => {
+    navigate("/feed/profile", {
+      state: { profileId, currentUser },
+    });
+  };
+
+  const { mutate: deletePostMutate } = useMutation({
+    mutationFn: async (postId) => {
+      try {
+        await APIS.deletePost(postId);
+        return postId;
+      } catch (error) {
+        throw error;
+      }
+    },
+    onSuccess: (deletedPostId) => {
+      // You'll need to handle the post removal from your UI state here
+      // This depends on how you're managing your posts list
+      console.log("Post deleted successfully:", deletedPostId);
+      setIsDeleteModalOpen(false);
+    },
+    onError: (error) => {
+      console.error("Error deleting post:", error);
+    },
+  });
 
   return (
     <>
@@ -159,7 +192,10 @@ const PostCard = ({ post, currentUser }) => {
           {/* Header */}
           <div className="px-6 py-4 flex items-center justify-between bg-gray-900 border-b border-gray-700">
             <div className="flex items-center gap-4">
-              <div onClick={()=> handleNavtoProfile(post?.owner?._id)} className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
+              <div
+                onClick={() => handleNavtoProfile(post?.owner?._id)}
+                className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10"
+              >
                 {post?.owner?.image ? (
                   <img
                     src={post?.owner?.image}
@@ -167,7 +203,6 @@ const PostCard = ({ post, currentUser }) => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  
                   <User className="h-6 w-6 text-white" />
                 )}
               </div>
@@ -200,16 +235,52 @@ const PostCard = ({ post, currentUser }) => {
                 {post?.owner?._id !== currentUser?.id && (
                   <>
                     {followers?.includes(currentUser?.id) ? (
-                      <span className="hidden sm:inline">UnFollow</span>
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 block md:hidden mr-1 text-white" />
+                        <span className="hidden sm:inline">Unfollow</span>
+                      </div>
                     ) : (
                       <div className="flex">
-                        <UserPlus className="h-4 w-4 sm:mr-1" />
+                        <UserPlus className="h-4 block md:hidden  w-4 mr-1" />
                         <span className="hidden sm:inline">Follow</span>
                       </div>
                     )}
                   </>
                 )}
               </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-1 rounded-full hover:bg-gray-700 transition"
+                >
+                  <MoreVertical className="h-5 w-5 text-white" />
+                </button>
+
+                {showMenu && (
+                  <div className="absolute right-0 mt-2 z-50">
+                    <MenuOption
+                      onEdit={() => {
+                        setPostToEdit(post);
+                        setIsEditModalOpen(true);
+                        console.log("Edit clicked");
+                        setShowMenu(false);
+                      }}
+                      onReport={() => {
+                        console.log("Report clicked");
+                        setShowMenu(false);
+                      }}
+                      onDelete={() => {
+                        setIsDeleteModalOpen(true);
+                        console.log("Delete clicked");
+                        setShowMenu(false);
+                      }}
+                      editText="Post"
+                      reportText="Post"
+                      deleteText="Post"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -270,19 +341,57 @@ const PostCard = ({ post, currentUser }) => {
                 />
                 {disAgrees.length}
               </div>
-              <div className="flex items-center gap-1">
-                <MessageSquare className="h-4 w-4 text-blue-400" />
-                {post.comments?.length}
+              <div
+                className="flex items-center gap-1 text-blue-400 cursor-pointer"
+                onClick={() => setShowCommentSection((prev) => !prev)}
+              >
+                <MessageSquare className="h-4 w-4" />
+                {post.comments?.length || 0}
               </div>
-              <div className="flex items-center gap-1 text-green-400">
+
+              <div
+                className="flex items-center gap-1 text-green-400 cursor-pointer"
+                onClick={() => setIsShareModalOpen(true)}
+              >
                 <Share2 className="h-4 w-4" />
                 <span>Share</span>
               </div>
             </div>
           </div>
+            {showCommentSection && (
+              <div className="px-6 py-4 border-t border-gray-700 bg-gray-900">
+                <CommentSection postId={post._id} />
+              </div>
+            )}
         </div>
       ) : (
         <>Error Fetching post</>
+      )}
+
+      {/* this modal for update */}
+      {isEditModalOpen && (
+        <CreatePostForm
+          currentUser={currentUser}
+          profile={currentUser}
+          onClose={() => setIsEditModalOpen(false)}
+          postToEdit={postToEdit}
+          isEditMode={true}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <Delete
+          text="Are you sure you want to delete this post?"
+          confirmText="Delete Post"
+          cancelText="Cancel"
+          onConfirm={() => deletePostMutate(post._id)}
+          onCancel={() => setIsDeleteModalOpen(false)}
+        />
+      )}
+      {/* this model for sharing post  */}
+      {isShareModalOpen && (
+        <Share shareUrl={shareUrl} onClose={() => setIsShareModalOpen(false)} />
       )}
     </>
   );

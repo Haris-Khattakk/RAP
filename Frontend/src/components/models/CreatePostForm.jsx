@@ -1,19 +1,27 @@
 import React, { useState, useRef } from "react";
 import { ImagePlus, X, User } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { APIS } from "../../config/Config";
+import { APIS } from "../../../config/Config";
 
-const CreatePostForm = ({ currentUser, profile, onClose }) => {
+const CreatePostForm = ({
+  currentUser,
+  profile,
+  onClose,
+  postToEdit,
+  isEditMode,
+}) => {
   const [form, setForm] = useState({
-    title: "",
-    propertyType: "",
-    location: "",
-    description: "",
-    images: [],
+    title: postToEdit?.title || "",
+    propertyType: postToEdit?.propertyType || "",
+    location: postToEdit?.location || "",
+    description: postToEdit?.description || "",
+    images: postToEdit?.media || [],
   });
 
+  const [isEdit] = useState(isEditMode);
+
   // console.log(profile)
-  const [isEdit, setIsEdit] = useState(false);
+
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
 
@@ -93,28 +101,35 @@ const CreatePostForm = ({ currentUser, profile, onClose }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData();
-    // console.log(currentUser)
     formData.append("owner", currentUser?._id);
     formData.append("title", form.title);
     formData.append("propertyType", form.propertyType);
     formData.append("description", form.description);
     formData.append("location", form.location);
-    // console.log(selectedMedia)
-    const existingFiles = form.images.map((item) => item.url);
-    formData.append("existingFiles", existingFiles);
-    // Only append new media files (not existing)
-    form.images.forEach((item) => {
-      if (item.file) {
-        formData.append(`files`, item.file);
-      }
-    });
 
-    // submit to backend
-    if(isEdit){
-      // ///////////////////////////////////////////
-      // note: pass post id in bellow before making update request
-      updatePostMutate(formData)
-    }else{
+    if (isEdit) {
+      // For edit, include the post ID and existing files
+      formData.append("postId", postToEdit._id);
+      const existingFiles = form.images
+        .filter((img) => img.url)
+        .map((img) => img.url);
+      formData.append("existingFiles", existingFiles);
+
+      // Append new files
+      form.images.forEach((item) => {
+        if (item.file) {
+          formData.append("files", item.file);
+        }
+      });
+
+      updatePostMutate({ postId: postToEdit._id, formData });
+    } else {
+      // Original create post logic
+      form.images.forEach((item) => {
+        if (item.file) {
+          formData.append("files", item.file);
+        }
+      });
       createPostMutate(formData);
     }
   };
@@ -127,7 +142,7 @@ const CreatePostForm = ({ currentUser, profile, onClose }) => {
       description: "",
       images: [],
     });
-    onClose(); // Close the modal
+    onClose();
   };
 
   return (
@@ -266,7 +281,7 @@ const CreatePostForm = ({ currentUser, profile, onClose }) => {
                       className="relative group border border-gray-300 rounded-lg overflow-hidden"
                     >
                       <img
-                        src={URL.createObjectURL(img)}
+                        src={img.url ? img.url : URL.createObjectURL(img)} // Handle both URLs and files
                         alt={`Preview ${index}`}
                         className="object-cover w-full h-32"
                       />
@@ -289,7 +304,7 @@ const CreatePostForm = ({ currentUser, profile, onClose }) => {
                       className="relative min-w-[120px] h-28 rounded-lg border border-gray-300 overflow-hidden group"
                     >
                       <img
-                        src={URL.createObjectURL(img)}
+                        src={img.url ? img.url : URL.createObjectURL(img)}
                         alt={`Preview ${index}`}
                         className="object-cover w-full h-full"
                       />
