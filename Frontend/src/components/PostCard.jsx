@@ -9,7 +9,7 @@ import {
   BarChart,
   UserPlus,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { QueryClient, useMutation } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 import { getTimeAgo } from "../functions/GetTimeAgo";
@@ -20,6 +20,7 @@ const PostCard = ({ post, currentUser }) => {
   const [disAgrees, setDisAgrees] = useState(post?.disLikes || []);
   const [followers, setFollowers] = useState(post?.owner?.followers || []);
   // const queryClient = new QueryClient();
+
 
   // mutation for agree
   const { mutate: likeMutate } = useMutation({
@@ -135,13 +136,21 @@ const PostCard = ({ post, currentUser }) => {
   });
 
   // mutation for follow/unfollow
-  const { mutate: followMutate } = useFollowMutation({followers: post?.owner?.followers});
+  const { mutate: followMutate } = useFollowMutation({followers});
   const handleFollow = () => {
     followMutate({
       follower: currentUser?.id,
       follow: post?.owner?._id,
     });
   };
+
+  const navigate = useNavigate();
+
+  const handleNavtoProfile = (profileId)=>{
+    navigate("/feed/profile",{
+      state: {profileId, currentUser}
+    })  
+  }
 
   return (
     <>
@@ -150,7 +159,7 @@ const PostCard = ({ post, currentUser }) => {
           {/* Header */}
           <div className="px-6 py-4 flex items-center justify-between bg-gray-900 border-b border-gray-700">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
+              <div onClick={()=> handleNavtoProfile(post?.owner?._id)} className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
                 {post?.owner?.image ? (
                   <img
                     src={post?.owner?.image}

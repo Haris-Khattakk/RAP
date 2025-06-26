@@ -151,14 +151,31 @@ const userController = {
   },
   getUser: async (req, res) => {
     const user_id = req.query.user;
-    console.log(user_id)
+    console.log(user_id);
     try {
-      const usr = await User.findOne({ _id: user_id }).populate("followers").populate("following");
-      // console.log(usr)
+      const usr = await User.findOne({ _id: user_id })
+        .populate("followers")
+        .populate("following");
+
       const finalUser = {
         ...usr._doc,
-        image: `data:image/png;base64,${usr.image.data.toString("base64")}`,
+        image: usr.image
+          ? `data:image/png;base64,${usr.image.data.toString("base64")}`
+          : null,
+        followers: usr.followers.map((follower) => ({
+          ...follower._doc,
+          image: follower.image
+            ? `data:image/png;base64,${follower.image.data.toString("base64")}`
+            : null,
+        })),
+        following: usr.following.map((followed) => ({
+          ...followed._doc,
+          image: followed.image
+            ? `data:image/png;base64,${followed.image.data.toString("base64")}`
+            : null,
+        })),
       };
+
       res.send(finalUser);
     } catch (error) {
       res.send(error);

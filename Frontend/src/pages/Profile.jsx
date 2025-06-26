@@ -29,17 +29,32 @@ const dummyFollowing = [
 
 export default function ProfileSection() {
   const [activeTab, setActiveTab] = useState("posts");
+  const [profile, setProfile] = useState(null);
   // const [userPosts, ]
   const LIMIT = 10;
 
   const location = useLocation();
   const currentUser = location.state?.currentUser;
-
+  const profileId = location.state?.profileId;
   const queryClient = useQueryClient();
-  const profile = queryClient.getQueryData([
-    "currentProfile",
-    currentUser?.id,
-  ]).data;
+
+  const { data: fetchedProfile, isLoading } = useQuery({
+    queryKey: ["userProfile", profileId],
+    queryFn: async () => {
+      return await APIS.getUser(profileId);
+    },
+    enabled: !!profileId,
+  });
+
+  useEffect(() => {
+    if (!isLoading) {
+      profileId
+        ? setProfile(fetchedProfile.data)
+        : setProfile(
+            queryClient.getQueryData(["currentProfile", currentUser?.id]).data
+          );
+    }
+  }, [profileId, currentUser, isLoading, fetchedProfile, queryClient]);
 
   // get user posts
   const {
@@ -48,20 +63,19 @@ export default function ProfileSection() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["userPosts", profile?._id],
+    queryKey: ["userPosts", profileId ? profileId : profile?._id],
     queryFn: async ({ pageParam = 1 }) => {
       return await APIS.getUserPosts({
         page: pageParam,
         limit: LIMIT,
-        userId: profile?._id,
+        userId: profileId ? profileId : profile?._id,
       });
     },
     getNextPageParam: (lastPage) =>
       lastPage?.hasMore ? lastPage?.nextPage : undefined,
-    enabled: !!profile?._id,
+    enabled: !!(profileId ? profileId : profile?._id),
   });
 
-  
   // mutation for follow/unfollow
   const { mutate: followMutate } = useFollowMutation({
     followers: profile?.followers,
@@ -112,14 +126,21 @@ export default function ProfileSection() {
                   className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs"
                 >
                   {/* Only icon on mobile, full text on sm+ */}
-
+                  {/* {console.log(profile?.followers)}
+                  {console.log(currentUser)} */}
                   <>
-                    {
+                    {profile?.followers?.some((f) =>
+                      typeof f === "string"
+                        ? f === currentUser?.id
+                        : f?._id === currentUser?.id
+                    ) ? (
+                      <span className="hidden sm:inline">UnFollow</span>
+                    ) : (
                       <div className="flex">
                         <UserPlus className="h-4 w-4 sm:mr-1" />
                         <span className="hidden sm:inline">Follow</span>
                       </div>
-                    }
+                    )}
                   </>
                 </button>
                 <button className="border border-gray-500 px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-700 transition">
@@ -185,14 +206,20 @@ export default function ProfileSection() {
         {/* Tab Content */}
         <div className="mt-6">
           {activeTab === "posts" &&
-             userPosts?.pages.map((page) =>
-              page.data.map((post) => <PostCard key={post._id} post={post} />)
+            userPosts?.pages.map((page) =>
+              page.data.map((post) => (
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  currentUser={currentUser}
+                />
+              ))
             )}
           {activeTab === "followers" && (
-            <Followers users={profile?.followers} />
+            <Followers users={profile?.followers} currentUser={currentUser} />
           )}
           {activeTab === "following" && (
-            <Followers users={profile?.following} />
+            <Followers users={profile?.following} currentUser={currentUser} />
           )}
         </div>
       </div>
