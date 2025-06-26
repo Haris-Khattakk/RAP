@@ -9,16 +9,18 @@ import {
   BarChart,
   UserPlus,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { QueryClient, useMutation } from "@tanstack/react-query";
 import { APIS } from "../../config/Config";
 import { getTimeAgo } from "../functions/GetTimeAgo";
+import { useFollowMutation } from "../react-query/follow&unfollowMutation";
 
 const PostCard = ({ post, currentUser }) => {
   const [agrees, setAgrees] = useState(post?.likes || []);
   const [disAgrees, setDisAgrees] = useState(post?.disLikes || []);
   const [followers, setFollowers] = useState(post?.owner?.followers || []);
   // const queryClient = new QueryClient();
+
 
   // mutation for agree
   const { mutate: likeMutate } = useMutation({
@@ -134,20 +136,21 @@ const PostCard = ({ post, currentUser }) => {
   });
 
   // mutation for follow/unfollow
-  const { mutate: followMutate } = useMutation({
-    mutationFn: async ({ follower, follow }) => {
-      return followers?.includes(follower)
-        ? await APIS.unfollowUser(follower, follow)
-        : await APIS.followUser(follower, follow);
-    },
-    onSuccess: () => {
-      followers?.includes(currentUser?.id)
-        ? setFollowers((prevs) =>
-            prevs.filter((follower) => follower !== currentUser?.id)
-          )
-        : setFollowers((prevs) => [...prevs, currentUser?.id]);
-    },
-  });
+  const { mutate: followMutate } = useFollowMutation({followers});
+  const handleFollow = () => {
+    followMutate({
+      follower: currentUser?.id,
+      follow: post?.owner?._id,
+    });
+  };
+
+  const navigate = useNavigate();
+
+  const handleNavtoProfile = (profileId)=>{
+    navigate("/feed/profile",{
+      state: {profileId, currentUser}
+    })  
+  }
 
   return (
     <>
@@ -156,7 +159,7 @@ const PostCard = ({ post, currentUser }) => {
           {/* Header */}
           <div className="px-6 py-4 flex items-center justify-between bg-gray-900 border-b border-gray-700">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
+              <div onClick={()=> handleNavtoProfile(post?.owner?._id)} className="w-12 h-12 rounded-full bg-gradient-to-r bg-blue-600 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white/10">
                 {post?.owner?.image ? (
                   <img
                     src={post?.owner?.image}
@@ -164,6 +167,7 @@ const PostCard = ({ post, currentUser }) => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
+                  
                   <User className="h-6 w-6 text-white" />
                 )}
               </div>
@@ -189,12 +193,7 @@ const PostCard = ({ post, currentUser }) => {
               </NavLink>
               {/* Follow Button */}
               <button
-                onClick={() =>
-                  followMutate({
-                    follower: currentUser?.id,
-                    follow: post?.owner?._id,
-                  })
-                }
+                onClick={handleFollow}
                 className="flex items-center gap-1 text-white bg-blue-500 px-3 py-1.5 rounded-md text-sm sm:text-xs"
               >
                 {/* Only icon on mobile, full text on sm+ */}

@@ -7,6 +7,8 @@ const media = require("./mediaModel");
 
 const postSchema = mongoose.Schema(
   {
+    title: String,
+    propertyType: String,
     description: String,
     owner: {
       type: mongoose.Schema.Types.ObjectId,

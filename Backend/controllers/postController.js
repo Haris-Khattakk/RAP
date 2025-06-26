@@ -23,7 +23,8 @@ const { truncatedNormal } = require("@tensorflow/tfjs");
 const postController = {
   createPost: async (req, res) => {
     try {
-      const { owner, location, description } = req.body;
+      const { title, propertyType, owner, location, description } = req.body;
+      // console.log(req.body)
       const ownerId = new mongoose.Types.ObjectId(owner);
 
       const isBad = await detectOffensiveText(description);
@@ -53,6 +54,8 @@ const postController = {
       }
 
       const data = {
+        title,
+        propertyType,
         owner: ownerId,
         location,
         description,
@@ -262,7 +265,7 @@ const postController = {
         });
 
       // filter out posts for only following/following owner's posts will be fetched
-      const posts = psts.filter(post=> post.owner?.followers?.includes(currentUser))
+      const posts = psts.filter(post=> post.owner?._id.toString() === currentUser || post.owner?.followers?.includes(currentUser))
       // console.log(posts)
       const total = await post.countDocuments();
       // console.log(`total: ${total} || fetched: ${posts.length}`)
@@ -345,8 +348,8 @@ const postController = {
           populate: [{ path: "likes" }, { path: "disLikes" }],
         });
 
-      // console.log(posts)
-      const posts = psts.filter(post=> !post.owner?.followers?.includes(currentUser))
+      // console.log(psts[0])
+      const posts = psts.filter(post=> post.owner?._id.toString() !== currentUser && !post.owner?.followers?.includes(currentUser))
       const total = await post.countDocuments();
       // console.log(`total: ${total} || fetched: ${posts.length}`)
       const hasMore = skip + posts.length < total;

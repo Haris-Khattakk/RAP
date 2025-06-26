@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Home,
   Compass,
@@ -12,9 +12,26 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { CreatePostForm } from "./index";
+import { useQuery } from "@tanstack/react-query";
+import { APIS } from "../../config/Config";
 
-const Navbar = () => {
+const Navbar = ({ currentUser }) => {
   const [showPostModal, setShowPostModal] = useState(false);
+  const [profile, setProfile] = useState({});
+
+  const { data, isSuccess } = useQuery({
+    queryKey: ["currentProfile", currentUser?.id],
+    queryFn: async () => {
+      return await APIS.getUser(currentUser.id);
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  useEffect(() => {
+    if (isSuccess) {
+      setProfile(data.data);
+    }
+  }, [isSuccess, data]);
 
   return (
     <>
@@ -81,6 +98,7 @@ const Navbar = () => {
             <NavLink
               to="/feed/profile"
               title="Profile"
+              state={{currentUser}}
               className="text-gray-300 hover:text-white"
             >
               <User className="w-5 h-5" />
@@ -158,7 +176,11 @@ const Navbar = () => {
             </button>
 
             {/* Pass the function to close the modal */}
-            <CreatePostForm onClose={() => setShowPostModal(false)} />
+            <CreatePostForm
+              currentUser={currentUser}
+              profile={profile}
+              onClose={() => setShowPostModal(false)}
+            />
           </div>
         </div>
       )}
