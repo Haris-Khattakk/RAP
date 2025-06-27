@@ -164,7 +164,7 @@ const getHomePosts = async ({ page, limit, currentUser }) => {
   // console.log(page, limit)
   try {
     const response = await axios.get(
-      `${Baseurl}/posts/getHomePosts?page=${page}&limit=${limit}&currentUser=${currentUser}`
+      `${Baseurl}/posts/getHomePosts?page=${page}&limit=${limit}&currentUser=${currentUser}`,{withCredentials: true}
     );
     return response;
   } catch (error) {
@@ -175,7 +175,7 @@ const getDiscoverPosts = async ({ page, limit, currentUser }) => {
   // console.log(page, limit)
   try {
     const response = await axios.get(
-      `${Baseurl}/posts/getDiscoverPosts?page=${page}&limit=${limit}&currentUser=${currentUser}`
+      `${Baseurl}/posts/getDiscoverPosts?page=${page}&limit=${limit}&currentUser=${currentUser}`,{withCredentials: true}
     );
     return response;
   } catch (error) {
@@ -187,7 +187,7 @@ const getUserPosts = async ({ page, limit, userId }) => {
   // console.log(page, limit)
   try {
     const response = await axios.get(
-      `${Baseurl}/posts/getUserPosts?user=${userId}&page=${page}&limit=${limit}`
+      `${Baseurl}/posts/getUserPosts?user=${userId}&page=${page}&limit=${limit}`, {withCredentials: true}
     );
     // console.log(response)
     return response.data
@@ -199,7 +199,7 @@ const getUserPosts = async ({ page, limit, userId }) => {
 const getSinglePost = async (post_id) => {
   try {
     const response = await axios.get(
-      `${Baseurl}/posts/getSinglePost?post=${post_id}`
+      `${Baseurl}/posts/getSinglePost?post=${post_id}`, {withCredentials: true}
     );
     return response;
   } catch (error) {
@@ -413,7 +413,7 @@ const addReply = async (data) => {
     const response = await axios.post(`${Baseurl}/posts/addReply`, data, {
       withCredentials: true,
     });
-    console.log(response);
+    // console.log(response);
     return response;
   } catch (error) {
     console.log(error, "problem in comment");
@@ -423,7 +423,7 @@ const addReply = async (data) => {
 
 const getReplies = async ({ pageParam = 1, commentId }) => {
   const response = await axios.get(
-    `${Baseurl}/posts/getReplies?comment=${commentId}&page=${pageParam}&limit=5`
+    `${Baseurl}/posts/getReplies?comment=${commentId}&page=${pageParam}&limit=5`, {withCredentials: true}
   );
   return {
     data: response.data,
