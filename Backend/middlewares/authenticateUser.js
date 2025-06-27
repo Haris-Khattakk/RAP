@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken')
 // authenticate user before giving access to specific routes
 const authenticateUsers = (req, res, next) => {
     
-    const authToken = req.cookies.jwtToken
+    const authToken = req.cookies.authToken
     
     const secret_key = process.env.SECRET_KEY;
     
