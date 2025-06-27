@@ -118,6 +118,7 @@ const getChats = async (userId)=>{
 
 
 const createPost = async (data) => {
+  // console.log(data)
   try {
     const response = await axios.post(`${Baseurl}/posts/createPost`, data, {
       headers: { "Content-Type": "multipart/form-data" },
