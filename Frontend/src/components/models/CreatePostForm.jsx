@@ -41,7 +41,7 @@ const CreatePostForm = ({
       }
     },
     onSuccess: async (newPost) => {
-      queryClient.setQueryData(["HomePosts", currentUser?._id], (oldData) => {
+      queryClient.setQueryData(["HomePosts", currentUser?.id], (oldData) => {
         if (!oldData) return [newPost];
         return [newPost, ...oldData];
       });
@@ -83,9 +83,11 @@ const CreatePostForm = ({
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
+
     if (name === "images") {
-      const newImages = [...form.images, ...Array.from(files)];
-      setForm({ ...form, images: newImages });
+      const newImages = Array.from(files).map((file) => ({ file }));
+      setForm({ ...form, images: [...form.images, ...newImages] });
+
       if (fileInputRef.current) fileInputRef.current.value = "";
     } else {
       setForm({ ...form, [name]: value });
@@ -101,14 +103,13 @@ const CreatePostForm = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData();
-    formData.append("owner", currentUser?._id);
+    formData.append("owner", currentUser?.id);
     formData.append("title", form.title);
     formData.append("propertyType", form.propertyType);
     formData.append("description", form.description);
     formData.append("location", form.location);
 
     if (isEdit) {
-      // For edit, include the post ID and existing files
       formData.append("postId", postToEdit._id);
       const existingFiles = form.images
         .filter((img) => img.url)
@@ -118,16 +119,15 @@ const CreatePostForm = ({
       // Append new files
       form.images.forEach((item) => {
         if (item.file) {
-          formData.append("files", item.file);
+          formData.append(`files`, item.file);
         }
       });
 
       updatePostMutate({ postId: postToEdit._id, formData });
     } else {
-      // Original create post logic
       form.images.forEach((item) => {
         if (item.file) {
-          formData.append("files", item.file);
+          formData.append(`files`, item.file);
         }
       });
       createPostMutate(formData);
@@ -277,11 +277,11 @@ const CreatePostForm = ({
                 <div className="hidden sm:grid sm:grid-cols-3 gap-4">
                   {form.images.map((img, index) => (
                     <div
-                      key={index}
-                      className="relative group border border-gray-300 rounded-lg overflow-hidden"
+                    key={index}
+                    className="relative group border border-gray-300 rounded-lg overflow-hidden"
                     >
                       <img
-                        src={img.url ? img.url : URL.createObjectURL(img)} // Handle both URLs and files
+                        src={img.url ? img.url : URL.createObjectURL(img.file)} // Handle both URLs and files
                         alt={`Preview ${index}`}
                         className="object-cover w-full h-32"
                       />
@@ -304,7 +304,7 @@ const CreatePostForm = ({
                       className="relative min-w-[120px] h-28 rounded-lg border border-gray-300 overflow-hidden group"
                     >
                       <img
-                        src={img.url ? img.url : URL.createObjectURL(img)}
+                        src={img.url ? img.url : URL.createObjectURL(img.file)}
                         alt={`Preview ${index}`}
                         className="object-cover w-full h-full"
                       />

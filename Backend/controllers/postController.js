@@ -24,7 +24,6 @@ const postController = {
   createPost: async (req, res) => {
     try {
       const { title, propertyType, owner, location, description } = req.body;
-      // console.log(req.body)
       const ownerId = new mongoose.Types.ObjectId(owner);
 
       const isBad = await detectOffensiveText(description);
@@ -132,6 +131,7 @@ const postController = {
     try {
       const postId = req.params.id;
       const { owner, location, description, existingFiles = [] } = req.body;
+      // console.log(req.body)
 
       const isBad = await detectOffensiveText(description);
       if (isBad) {

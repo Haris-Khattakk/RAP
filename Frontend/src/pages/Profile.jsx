@@ -30,6 +30,7 @@ const dummyFollowing = [
 export default function ProfileSection() {
   const [activeTab, setActiveTab] = useState("posts");
   const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([])
   // const [userPosts, ]
   const LIMIT = 10;
 
@@ -58,10 +59,11 @@ export default function ProfileSection() {
 
   // get user posts
   const {
-    data: userPosts,
+    data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isSuccess
   } = useInfiniteQuery({
     queryKey: ["userPosts", profileId ? profileId : profile?._id],
     queryFn: async ({ pageParam = 1 }) => {
@@ -75,6 +77,12 @@ export default function ProfileSection() {
       lastPage?.hasMore ? lastPage?.nextPage : undefined,
     enabled: !!(profileId ? profileId : profile?._id),
   });
+
+  useEffect(()=>{
+    if(isSuccess){
+      data?.pages?.map(page =>setPosts(page?.data))
+    }
+  }, [isSuccess])
 
   // mutation for follow/unfollow
   const { mutate: followMutate } = useFollowMutation({
@@ -206,14 +214,15 @@ export default function ProfileSection() {
         {/* Tab Content */}
         <div className="mt-6">
           {activeTab === "posts" &&
-            userPosts?.pages.map((page) =>
-              page.data.map((post) => (
+            posts?.map((post, index) =>(
                 <PostCard
-                  key={post._id}
+                  key={`${post._id}-${index}`}
                   post={post}
                   currentUser={currentUser}
+                  posts={posts}
+                  setPosts={setPosts}
                 />
-              ))
+              )
             )}
           {activeTab === "followers" && (
             <Followers users={profile?.followers} currentUser={currentUser} />

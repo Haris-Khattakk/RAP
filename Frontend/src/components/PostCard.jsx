@@ -19,7 +19,7 @@ import { MenuOption } from "./ui/index";
 import { Delete, CreatePostForm, Share } from "./models/index";
 import { CommentSection } from "../pages/index";
 
-const PostCard = ({ post, currentUser }) => {
+const PostCard = ({ post, currentUser, setPosts, posts }) => {
   const [agrees, setAgrees] = useState(post?.likes || []);
   const [disAgrees, setDisAgrees] = useState(post?.disLikes || []);
   const [followers, setFollowers] = useState(post?.owner?.followers || []);
@@ -29,8 +29,6 @@ const PostCard = ({ post, currentUser }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showCommentSection, setShowCommentSection] = useState(false);
-
-
   // const queryClient = new QueryClient();
 
   const shareUrl = `https://rateaproperty.com/post/${post?._id}`;
@@ -167,17 +165,17 @@ const PostCard = ({ post, currentUser }) => {
 
   const { mutate: deletePostMutate } = useMutation({
     mutationFn: async (postId) => {
+      // eslint-disable-next-line no-useless-catch
       try {
-        await APIS.deletePost(postId);
+        await APIS.delPost(postId);
         return postId;
       } catch (error) {
         throw error;
       }
     },
     onSuccess: (deletedPostId) => {
-      // You'll need to handle the post removal from your UI state here
-      // This depends on how you're managing your posts list
       console.log("Post deleted successfully:", deletedPostId);
+      setPosts(posts?.filter((pst) => pst._id !== post._id));
       setIsDeleteModalOpen(false);
     },
     onError: (error) => {
@@ -259,6 +257,8 @@ const PostCard = ({ post, currentUser }) => {
                 {showMenu && (
                   <div className="absolute right-0 mt-2 z-50">
                     <MenuOption
+                      currentUser={currentUser}
+                      postId={post?.owner?._id}
                       onEdit={() => {
                         setPostToEdit(post);
                         setIsEditModalOpen(true);
@@ -358,11 +358,11 @@ const PostCard = ({ post, currentUser }) => {
               </div>
             </div>
           </div>
-            {showCommentSection && (
-              <div className="px-6 py-4 border-t border-gray-700 bg-gray-900">
-                <CommentSection postId={post._id} />
-              </div>
-            )}
+          {showCommentSection && (
+            <div className="px-6 py-4 border-t border-gray-700 bg-gray-900">
+              <CommentSection postId={post._id} />
+            </div>
+          )}
         </div>
       ) : (
         <>Error Fetching post</>
