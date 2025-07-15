@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { User, Heart, ThumbsDown, CornerUpRight } from "lucide-react";
 import { CommentCard, Inputbox } from "../components/ui/index";
 
-const CommentSection = () => {
+const CommentSection = ({postId}) => {
   const [comments, setComments] = useState([
     {
       id: 1,
